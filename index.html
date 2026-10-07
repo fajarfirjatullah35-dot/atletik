@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualangan Lompat Jauh - Side Scroller Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Fredoka+One&display=swap');
+        
+        .font-retro {
+            font-family: 'Press Start 2P', cursive;
+        }
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+        
+        canvas {
+            image-rendering: pixelated;
+            background: linear-gradient(to bottom, #70a5ff, #b3d1ff);
+        }
+
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Pixelated Retro Button effect */
+        .btn-retro {
+            box-shadow: inset -4px -4px 0px 0px #1a202c, inset 4px 4px 0px 0px #ffffff;
+            transition: transform 0.1s;
+        }
+        .btn-retro:active {
+            transform: translate(2px, 2px);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col justify-center items-center font-game select-none overflow-hidden p-2">
+
+    <!-- Container Utama -->
+    <div class="relative w-full max-w-4xl bg-gray-800 rounded-2xl p-4 shadow-2xl border-4 border-yellow-500 flex flex-col items-center">
+        
+        <!-- Header Info Game -->
+        <div class="w-full flex justify-between items-center mb-3 bg-gray-900 p-3 rounded-xl border-2 border-gray-700 font-retro text-xs md:text-sm">
+            <div class="text-yellow-400 flex items-center gap-2">
+                <i class="fas fa-trophy text-lg"></i>
+                <span>SKOR: <span id="scoreText">0</span></span>
+            </div>
+            <div class="text-blue-400 flex items-center gap-2">
+                <i class="fas fa-layer-group text-lg"></i>
+                <span id="levelText">LEVEL 1</span>
+            </div>
+            <div class="text-red-500 flex items-center gap-1">
+                <i class="fas fa-heart text-lg"></i>
+                <span id="livesText">x3</span>
+            </div>
+        </div>
+
+        <!-- Canvas Game -->
+        <div class="relative w-full overflow-hidden rounded-xl border-4 border-gray-700 bg-blue-300">
+            <canvas id="gameCanvas" width="800" height="400" class="w-full h-auto block"></canvas>
+            
+            <!-- Overlay Start Game -->
+            <div id="startScreen" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-6 text-center z-10">
+                <h1 class="text-3xl md:text-5xl font-retro text-yellow-400 mb-4 animate-bounce">SUPER LOMPAT JAUH</h1>
+                <p class="text-gray-300 mb-6 text-sm md:text-base max-w-lg">
+                    Bantu sang Atlet menjelajahi 4 Level Petualangan Lompat Jauh! Lewati rintangan dan jawab 20 Soal Pilihan Ganda untuk menjadi Juara!
+                </p>
+                <button onclick="startGame()" class="btn-retro bg-green-500 hover:bg-green-600 text-white font-retro px-8 py-4 rounded-lg text-lg text-shadow cursor-pointer">
+                    MULAIPEMAINAN <i class="fas fa-play ml-2"></i>
+                </button>
+            </div>
+
+            <!-- Overlay Game Over -->
+            <div id="gameOverScreen" class="hidden absolute inset-0 bg-red-950/90 flex flex-col items-center justify-center p-6 text-center z-20">
+                <h2 class="text-4xl font-retro text-red-500 mb-4">GAME OVER!</h2>
+                <p class="text-white mb-6" id="gameOverMsg">Kesempatan kamu telah habis.</p>
+                <button onclick="restartGame()" class="btn-retro bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-retro px-6 py-3 rounded-lg text-sm">
+                    COBA LAGI <i class="fas fa-redo ml-2"></i>
+                </button>
+            </div>
+
+            <!-- Overlay Tamat Game -->
+            <div id="victoryScreen" class="hidden absolute inset-0 bg-yellow-600/90 flex flex-col items-center justify-center p-6 text-center z-20">
+                <i class="fas fa-crown text-6xl text-yellow-300 mb-4 animate-bounce"></i>
+                <h2 class="text-3xl md:text-4xl font-retro text-white mb-2">SELAMAT! KAMPION!</h2>
+                <p class="text-xl text-yellow-100 mb-6">Kamu telah menguasai seluruh materi Lompat Jauh!</p>
+                <p class="font-retro text-2xl text-white mb-6">SKOR AKHIR: <span id="finalScore">0</span></p>
+                <button onclick="restartGame()" class="btn-retro bg-blue-600 hover:bg-blue-700 text-white font-retro px-6 py-3 rounded-lg text-sm">
+                    MAIN LAGI <i class="fas fa-sync ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tombol Kontrol Mobile / Virtual D-Pad -->
+        <div class="w-full flex justify-between items-center mt-3 px-2 md:hidden">
+            <div class="flex gap-2">
+                <button id="btnLeft" class="btn-retro bg-gray-700 text-white w-14 h-14 rounded-full text-2xl flex items-center justify-center active:bg-gray-600">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <button id="btnRight" class="btn-retro bg-gray-700 text-white w-14 h-14 rounded-full text-2xl flex items-center justify-center active:bg-gray-600">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+            <button id="btnJump" class="btn-retro bg-yellow-500 text-gray-900 w-16 h-16 rounded-full text-xl font-bold flex items-center justify-center active:bg-yellow-400">
+                LOMPAT
+            </button>
+        </div>
+
+        <!-- Petunjuk Keyboard Desktop -->
+        <div class="hidden md:flex justify-between w-full mt-3 text-xs text-gray-400 font-sans px-2">
+            <span><i class="fas fa-keyboard mr-1"></i> Kontrol: <b>A / D / Panah Left-Right</b> = Jalan | <b>W / Space / Panah Up</b> = Melompat</span>
+            <span>Jawab Pertanyaan di Setiap Kotak Misteri <b>[?]</b></span>
+        </div>
+    </div>
+
+    <!-- Modal Quiz / Soal -->
+    <div id="quizModal" class="hidden fixed inset-0 modal-bg flex items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 border-4 border-yellow-400 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative animate-fade-in">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <span id="quizLevelBadge" class="bg-blue-600 text-xs font-retro px-2.5 py-1 rounded text-white">LEVEL 1 - SOAL 1</span>
+                <span class="text-xs text-yellow-400 font-retro"><i class="fas fa-star mr-1"></i> +100 PTS</span>
+            </div>
+            
+            <h3 id="quizQuestion" class="text-lg md:text-xl font-semibold mb-6 text-white leading-snug">
+                Pertanyaan akan muncul di sini?
+            </h3>
+
+            <div id="quizOptions" class="space-y-3 mb-4">
+                <!-- Pilihan jawaban di-inject via JS -->
+            </div>
+
+            <!-- Umpan balik jawaban -->
+            <div id="quizFeedback" class="hidden p-3 rounded-lg text-sm font-bold text-center mt-2"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           DATA SOAL (20 Soal Pilihan Ganda Bergradasi - 4 Level @ 5 Soal)
+           ========================================================================== */
+        const quizData = [
+            // LEVEL 1: Awalan & Tumpuan (Approach & Takeoff)
+            {
+                level: 1,
+                question: "1. Apakah tujuan utama dari gerakan awalan (approach) dalam lompat jauh?",
+                options: [
+                    "A. Memperindah gerakan saat melayang",
+                    "B. Mendapatkan kecepatan horizontal maksimal",
+                    "C. Menjaga keseimbangan saat pendaratan",
+                    "D. Mengurangi risiko cedera pada lutut"
+                ],
+                answer: 1,
+                explanation: "Awalan bertujuan untuk membina kecepatan horizontal setinggi-tingginya sebelum melakukan tolakan."
+            },
+            {
+                level: 1,
+                question: "2. Bagian kaki manakah yang digunakan untuk melakukan tumpuan/tolakan yang kuat?",
+                options: [
+                    "A. Kaki kiri saja",
+                    "B. Kaki kanan saja",
+                    "C. Salah satu kaki yang paling kuat",
+                    "D. Kedua kaki secara bersamaan"
+                ],
+                answer: 2,
+                explanation: "Tumpuan dilakukan dengan memilih salah satu kaki terkuat (kiri/kanan)."
+            },
+            {
+                level: 1,
+                question: "3. Bagaimana lintasan/arah gerak badan yang benar saat melakukan tolakan di papan tumpu?",
+                options: [
+                    "A. Ke depan lurus sejajar tanah",
+                    "B. Ke atas depan membentuk sudut",
+                    "C. Ke belakang untuk mengambil ancang-ancang",
+                    "D. Ke samping kanan atau kiri"
+                ],
+                answer: 1,
+                explanation: "Tolakan yang efektif mengarahkan momentum ke atas-depan untuk mencapai ketinggian dan jarak."
+            },
+            {
+                level: 1,
+                question: "4. Berapakah rata-rata jarak lintasan awalan lompat jauh untuk atlet dewasa?",
+                options: [
+                    "A. 10 - 15 meter",
+                    "B. 20 - 25 meter",
+                    "C. 35 - 45 meter",
+                    "D. 60 - 70 meter"
+                ],
+                answer: 2,
+                explanation: "Lintasan awalan standar internasional umumnya berkisar antara 35 hingga 45 meter."
+            },
+            {
+                level: 1,
+                question: "5. Apa yang terjadi jika kaki tumpuan melebihi batas papan tumpuan (papan tolakan)?",
+                options: [
+                    "A. Lompatan tetap sah tetapi dikurangi 1 meter",
+                    "B. Lompatan dinyatakan diskualifikasi / tidak sah (Foul)",
+                    "C. Peserta harus mengulang lompatan",
+                    "D. Nilai estetika dikurangi"
+                ],
+                answer: 1,
+                explanation: "Injakan yang melewati garis depan papan tumpu dianggap pelanggaran (foul/tidak sah)."
+            },
+
+            // LEVEL 2: Sikap Melayang di Udara (Flight Phase)
+            {
+                level: 2,
+                question: "6. Manakah di bawah ini yang BUKAN merupakan gaya dalam lompat jauh?",
+                options: [
+                    "A. Gaya Jongkok (Ortodoks)",
+                    "B. Gaya Menggantung (Schnepper)",
+                    "C. Gaya Berjalan di Udara (Walking in the Air)",
+                    "D. Gaya Dada (Breaststroke)"
+                ],
+                answer: 3,
+                explanation: "Gaya dada adalah gaya dalam olahraga renang, bukan lompat jauh."
+            },
+            {
+                level: 2,
+                question: "7. Pada 'Gaya Jongkok', bagaimana posisi kedua kaki saat melayang di udara?",
+                options: [
+                    "A. Ditekuk di depan dada seolah duduk melayang",
+                    "B. Diluruskan ke belakang badan",
+                    "C. Melakukan gerakan melangkah seperti berjalan",
+                    "D. Dibuka lebar ke samping"
+                ],
+                answer: 0,
+                explanation: "Gaya jongkok ditandai dengan posisi lutut ditekuk ke arah dada saat di udara."
+            },
+            {
+                level: 2,
+                question: "8. Apa ciri utama dari lompat jauh 'Gaya Menggantung' (Hang Style)?",
+                options: [
+                    "A. Badan membungkuk ke depan",
+                    "B. Dada dibusungkan dan pinggul didorong ke depan",
+                    "C. Kaki diayun mengayuh ke depan belakang",
+                    "D. Tangan melipat di pinggang"
+                ],
+                answer: 1,
+                explanation: "Gaya menggantung ditandai dengan melengkungkan badan ke belakang (dada busung) saat melayang."
+            },
+            {
+                level: 2,
+                question: "9. Mengapa atlet harus mempertahankan keseimbangan posisi badan saat melayang di udara?",
+                options: [
+                    "A. Agar lompatan terlihat bagus oleh juri",
+                    "B. Mempersiapkan posisi pendaratan yang optimal",
+                    "C. Mempercepat laju angin di udara",
+                    "D. Memenuhi syarat estetik pertandingan"
+                ],
+                answer: 1,
+                explanation: "Keseimbangan udara sangat penting untuk menyiapkan kaki meluncur jauh ke depan saat mendarat."
+            },
+            {
+                level: 2,
+                question: "10. Pada gaya 'Berjalan di Udara', gerakan lengan dan kaki berfungsi untuk...",
+                options: [
+                    "A. Menambah kecepatan lari",
+                    "B. Memperpanjang waktu melayang (hang time) & keseimbangan",
+                    "C. Menakut-nakuti lawan",
+                    "D. Mengelabui garis pendaratan juri"
+                ],
+                answer: 1,
+                explanation: "Gerakan mengayuh kaki/lengan membantu menjaga dinamika keseimbangan dan memperjauh jangkauan."
+            },
+
+            // LEVEL 3: Pendaratan & Peraturan (Landing & Rules)
+            {
+                level: 3,
+                question: "11. Saat melakukan pendaratan di bak pasir, anggota tubuh mana yang harus mendarat terlebih dahulu?",
+                options: [
+                    "A. Lutut dan tangan",
+                    "B. Kedua tumit kaki secara bersamaan",
+                    "C. Pantat / pinggul",
+                    "D. Salah satu lutut"
+                ],
+                answer: 1,
+                explanation: "Pendaratan diawali dengan kedua tumit menyentuh pasir terlebih dahulu dengan lutut mengeper."
+            },
+            {
+                level: 3,
+                question: "12. Bagaimana posisi badan yang benar saat menyentuh bak pasir agar tidak jatuh ke belakang?",
+                options: [
+                    "A. Badannya dijatuhkan lurus ke belakang",
+                    "B. Kepala ditengadahkan ke atas",
+                    "C. Berat badan didorong ke depan dan lutut mengeper",
+                    "D. Bertumpu penuh pada kedua telapak tangan di belakang"
+                ],
+                answer: 2,
+                explanation: "Mendorong badan ke depan mencegah tubuh jatuh ke belakang yang dapat merugikan pengukuran jarak."
+            },
+            {
+                level: 3,
+                question: "13. Pengukuran jarak hasil lompatan diambil dari papan tumpuan sampai ke...",
+                options: [
+                    "A. Pendaratan tumit kaki pertama",
+                    "B. Bekas pendaratan terdekat dengan papan tumpuan",
+                    "C. Ujung jari kaki paling depan di pasir",
+                    "D. Tengah-tengah bak pasir"
+                ],
+                answer: 1,
+                explanation: "Jarak diukur dari garis tumpuan ke titik bekas tubuh mana pun yang terdekat dengan garis tumpuan."
+            },
+            {
+                level: 3,
+                question: "14. Mengapa atlet TIDAK boleh berjalan balik melintasi bak pasir ke arah papan tumpu setelah mendarat?",
+                options: [
+                    "A. Dapat merusak tekstur pasir",
+                    "B. Lompatan bisa dianggap diskualifikasi / batal",
+                    "C. Menyebabkan cedera engkel",
+                    "D. Menghabiskan durasi pertandingan"
+                ],
+                answer: 1,
+                explanation: "Setelah mendarat, atlet wajib keluar lewat depan/samping bak pasir. Berjalan mundur ke tumpuan membatalkan hasil."
+            },
+            {
+                level: 3,
+                question: "15. Berapakah lebar papan tumpuan standar dalam perlombaan lompat jauh resmi?",
+                options: [
+                    "A. 10 cm",
+                    "B. 20 cm",
+                    "C. 50 cm",
+                    "D. 100 cm"
+                ],
+                answer: 1,
+                explanation: "Lebar papan tumpuan standar World Athletics adalah 20 cm (dengan panjang 1,22 meter)."
+            },
+
+            // LEVEL 4: Kejuaraan & Analisis Keterampilan (Mastery Phase)
+            {
+                level: 4,
+                question: "16. Kombinasi faktor fisik paling dominan untuk menghasilkan lompatan yang jauh adalah...",
+                options: [
+                    "A. Daya tahan jantung dan kelentukan",
+                    "B. Kecepatan (speed) dan Daya Ledak (explosive power)",
+                    "C. Kekuatan otot perut dan keseimbangan statis",
+                    "D. Kelincahan dan koordinasi mata-tangan"
+                ],
+                answer: 1,
+                explanation: "Kecepatan awalan berpadu daya ledak otot bursa/kaki (power) menentukan jangkauan lompatan."
+            },
+            {
+                level: 4,
+                question: "17. Apa nama induk organisasi cabang olahraga atletik (termasuk lompat jauh) di Indonesia?",
+                options: [
+                    "A. PBVSI",
+                    "B. PSSI",
+                    "C. PASI (Persatuan Atletik Seluruh Indonesia)",
+                    "D. PERBASASI"
+                ],
+                answer: 2,
+                explanation: "PASI adalah induk organisasi resmi yang menaungi cabang olahraga atletik di Indonesia."
+            },
+            {
+                level: 4,
+                question: "18. Jika seorang atlet melakukan awalan yang sangat cepat namun melangkah ragu menjelang tumpuan, dampaknya adalah...",
+                options: [
+                    "A. Jangkauan lompatan makin jauh",
+                    "B. Kecepatan momentum berkurang dan tolakan tidak maksimal",
+                    "C. Otomatis menghasilkan gaya melayang yang sempurna",
+                    "D. Pendaratan menjadi lebih mulus"
+                ],
+                answer: 1,
+                explanation: "Keraguan menurunkan kecepatan horisontal yang berakibat pada penurunan daya dorong lompatan."
+            },
+            {
+                level: 4,
+                question: "19. Sarana pendaratan lompat jauh diisi dengan bahan berupa...",
+                options: [
+                    "A. Matras busa tebal",
+                    "B. Pasir halus yang lembap dan rata",
+                    "C. Rumput sintetis",
+                    "D. Kerikil halus"
+                ],
+                answer: 1,
+                explanation: "Bak pendaratan diisi pasir halus tanpa batu/kerikil untuk meredam benturan pendaratan."
+            },
+            {
+                level: 4,
+                question: "20. Siapakah pemegang rekor dunia lompat jauh putra saat ini (8.95 meter sejak 1991)?",
+                options: [
+                    "A. Usain Bolt",
+                    "B. Mike Powell",
+                    "C. Carl Lewis",
+                    "D. Bob Beamon"
+                ],
+                answer: 1,
+                explanation: "Mike Powell (AS) memecahkan rekor dunia lompat jauh sejauh 8,95m pada Kejuaraan Dunia 1991 di Tokyo."
+            }
+        ];
+
+        /* ==========================================================================
+           GAME ENGINE & LOGIC (CANVAS PARALLAX / SIDE SCROLLER)
+           ========================================================================== */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Audio Effects (Web Audio API)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, duration, type = 'sine') {
+            try {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        // Game State
+        let gameState = 'START'; // START, PLAYING, QUIZ, GAMEOVER, VICTORY
+        let currentLevel = 1;
+        let score = 0;
+        let lives = 3;
+        let currentQuestionIdx = 0;
+
+        // Key states
+        const keys = { left: false, right: false, up: false };
+
+        // Player Properties
+        const player = {
+            x: 50,
+            y: 280,
+            width: 32,
+            height: 48,
+            vx: 0,
+            vy: 0,
+            speed: 4.5,
+            jumpPower: -11,
+            gravity: 0.5,
+            isJumping: false,
+            facingRight: true,
+            frame: 0
+        };
+
+        // Level Map & Objects
+        let cameraX = 0;
+        let levelWidth = 2400;
+        let blocks = [];
+        let coins = [];
+        let questionBlocks = [];
+        let finishFlag = { x: 2200, y: 180, width: 40, height: 160 };
+
+        // Inisialisasi Level
+        function initLevel(lvl) {
+            currentLevel = lvl;
+            cameraX = 0;
+            player.x = 50;
+            player.y = 280;
+            player.vx = 0;
+            player.vy = 0;
+
+            document.getElementById('levelText').innerText = `LEVEL ${lvl}`;
+            
+            blocks = [];
+            coins = [];
+            questionBlocks = [];
+
+            // Pijakan Dasar (Ground)
+            for (let x = 0; x < levelWidth; x += 40) {
+                // Jurang di beberapa titik
+                if ((lvl === 1 && (x === 600 || x === 640 || x === 1300 || x === 1340)) ||
+                    (lvl === 2 && (x === 500 || x === 540 || x === 580 || x === 1200 || x === 1240)) ||
+                    (lvl === 3 && (x === 700 || x === 740 || x === 1400 || x === 1440 || x === 1480)) ||
+                    (lvl === 4 && (x === 400 || x === 440 || x === 900 || x === 940 || x === 1500 || x === 1540))) {
+                    continue; // Skip untuk buat jurang
+                }
+                blocks.push({ x: x, y: 340, width: 40, height: 60, type: 'ground' });
+            }
+
+            // Platform Tambahan
+            const platforms = [
+                {x: 300, y: 250, w: 120}, {x: 700, y: 220, w: 120},
+                {x: 1000, y: 240, w: 160}, {x: 1500, y: 210, w: 120},
+                {x: 1800, y: 250, w: 160}
+            ];
+            platforms.forEach(p => {
+                for(let i=0; i<p.w; i+=40) {
+                    blocks.push({ x: p.x + i, y: p.y, width: 40, height: 20, type: 'brick' });
+                }
+            });
+
+            // Koin
+            for (let i = 200; i < levelWidth - 300; i += 150) {
+                coins.push({ x: i, y: 280, width: 16, height: 16, collected: false });
+            }
+
+            // 5 Kotak Soal [?] per level
+            const startQ = (lvl - 1) * 5;
+            const qPositions = [350, 750, 1100, 1550, 1850];
+
+            for (let i = 0; i < 5; i++) {
+                questionBlocks.push({
+                    x: qPositions[i],
+                    y: 200,
+                    width: 40,
+                    height: 40,
+                    questionIndex: startQ + i,
+                    active: true,
+                    hit: false
+                });
+            }
+
+            finishFlag.x = levelWidth - 150;
+        }
+
+        // Input Listeners
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') {
+                if (!keys.up && !player.isJumping) {
+                    player.vy = player.jumpPower;
+                    player.isJumping = true;
+                    playSound(400, 0.15);
+                }
+                keys.up = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keys.up = false;
+        });
+
+        // Touch Control Mobile
+        const bindTouch = (id, keyName) => {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (keyName === 'up' && !player.isJumping && gameState==='PLAYING') {
+                    player.vy = player.jumpPower;
+                    player.isJumping = true;
+                    playSound(400, 0.15);
+                }
+                keys[keyName] = true;
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+            });
+        };
+        bindTouch('btnLeft', 'left');
+        bindTouch('btnRight', 'right');
+        bindTouch('btnJump', 'up');
+
+        // Update Game Loop
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // Pergerakan Horisontal
+            if (keys.left) {
+                player.vx = -player.speed;
+                player.facingRight = false;
+            } else if (keys.right) {
+                player.vx = player.speed;
+                player.facingRight = true;
+            } else {
+                player.vx = 0;
+            }
+
+            // Gravitasi & Pergerakan Vertikal
+            player.vy += player.gravity;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Batas Kiri
+            if (player.x < 0) player.x = 0;
+
+            // Tabrakan dengan Pijakan (Blocks)
+            player.isJumping = true; // Asumsi jatuh kecuali menyentuh atas tanah
+            for (let b of blocks) {
+                if (player.x < b.x + b.width &&
+                    player.x + player.width > b.x &&
+                    player.y < b.y + b.height &&
+                    player.y + player.height > b.y) {
+                    
+                    // Deteksi Mendarat dari Atas
+                    if (player.vy > 0 && player.y + player.height - player.vy <= b.y) {
+                        player.y = b.y - player.height;
+                        player.vy = 0;
+                        player.isJumping = false;
+                    }
+                }
+            }
+
+            // Tabrakan dengan Kotak Pertanyaan [?]
+            for (let q of questionBlocks) {
+                if (q.active &&
+                    player.x < q.x + q.width &&
+                    player.x + player.width > q.x &&
+                    player.y < q.y + q.height &&
+                    player.y + player.height > q.y) {
+                    
+                    // Sundul dari Bawah
+                    if (player.vy < 0 && player.y - player.vy >= q.y + q.height - 10) {
+                        player.vy = 2; // Terpental turun
+                        triggerQuiz(q);
+                        break;
+                    } 
+                    // Nabrak dari Samping/Atas
+                    else if (player.vy > 0 && player.y + player.height - player.vy <= q.y) {
+                        player.y = q.y - player.height;
+                        player.vy = 0;
+                        player.isJumping = false;
+                    }
+                }
+            }
+
+            // Ambil Koin
+            coins.forEach(c => {
+                if (!c.collected &&
+                    player.x < c.x + c.width &&
+                    player.x + player.width > c.x &&
+                    player.y < c.y + c.height &&
+                    player.y + player.height > c.y) {
+                    c.collected = true;
+                    score += 10;
+                    document.getElementById('scoreText').innerText = score;
+                    playSound(800, 0.1);
+                }
+            });
+
+            // Jatuh ke Jurang (Mati)
+            if (player.y > canvas.height + 50) {
+                playerDie("Kamu jatuh ke dalam jurang!");
+            }
+
+            // Kamera Mengikuti Pemain
+            cameraX = player.x - 200;
+            if (cameraX < 0) cameraX = 0;
+            if (cameraX > levelWidth - canvas.width) cameraX = levelWidth - canvas.width;
+
+            // Menyentuh Bendera Finish Level
+            if (player.x >= finishFlag.x) {
+                // Pastikan semua soal di level ini sudah diinteraksi/dijawab
+                const levelQuestions = questionBlocks.filter(q => q.active);
+                if (levelQuestions.length > 0) {
+                    // Beri dorongan mundur jika belum menjawab semua soal
+                    player.x = finishFlag.x - 60;
+                    alert("Kamu harus menjawab semua Kotak Soal [?] sebelum dapat menyelesaikan level ini!");
+                } else {
+                    playSound(600, 0.3);
+                    if (currentLevel < 4) {
+                        alert(`Hebat! Level ${currentLevel} Selesai! Bersiap untuk Level berikutnya.`);
+                        initLevel(currentLevel + 1);
+                    } else {
+                        // Game Tamat / Menang
+                        gameState = 'VICTORY';
+                        document.getElementById('finalScore').innerText = score;
+                        document.getElementById('victoryScreen').classList.remove('hidden');
+                    }
+                }
+            }
+        }
+
+        // Pengurangan Nyawa
+        function playerDie(reason) {
+            playSound(150, 0.4, 'sawtooth');
+            lives--;
+            document.getElementById('livesText').innerText = `x${lives}`;
+            
+            if (lives <= 0) {
+                gameState = 'GAMEOVER';
+                document.getElementById('gameOverMsg').innerText = reason || "Kamu kehabisan nyawa!";
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+            } else {
+                alert(`${reason}\nSisa Nyawa: ${lives}`);
+                player.x = Math.max(50, player.x - 200);
+                player.y = 200;
+                player.vy = 0;
+            }
+        }
+
+        /* ==========================================================================
+           RENDER / GRAPHICS CANVAS
+           ========================================================================== */
+        function render() {
+            // Clear Background (Langit)
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(-cameraX, 0);
+
+            // Awan Dekorasi
+            ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+            for (let i = 0; i < levelWidth; i += 300) {
+                ctx.beginPath();
+                ctx.arc(i + 50, 80, 25, 0, Math.PI * 2);
+                ctx.arc(i + 75, 70, 35, 0, Math.PI * 2);
+                ctx.arc(i + 100, 80, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Ground & Bricks
+            blocks.forEach(b => {
+                if (b.type === 'ground') {
+                    ctx.fillStyle = '#22c55e'; // Rumput Hijau
+                    ctx.fillRect(b.x, b.y, b.width, 12);
+                    ctx.fillStyle = '#78350f'; // Tanah Cokelat
+                    ctx.fillRect(b.x, b.y + 12, b.width, b.height - 12);
+                } else {
+                    ctx.fillStyle = '#b45309'; // Batu Bata
+                    ctx.fillRect(b.x, b.y, b.width, b.height);
+                    ctx.strokeStyle = '#451a03';
+                    ctx.strokeRect(b.x, b.y, b.width, b.height);
+                }
+            });
+
+            // Koin
+            coins.forEach(c => {
+                if (!c.collected) {
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(c.x + 8, c.y + 8, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ca8a04';
+                    ctx.stroke();
+                }
+            });
+
+            // Kotak Soal [?]
+            questionBlocks.forEach(q => {
+                if (q.active) {
+                    ctx.fillStyle = '#eab308'; // Kuning
+                    ctx.fillRect(q.x, q.y, q.width, q.height);
+                    ctx.strokeStyle = '#854d0e';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(q.x, q.y, q.width, q.height);
+
+                    // Tanda Tanya
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 22px "Press Start 2P", sans-serif';
+                    ctx.fillText('?', q.x + 11, q.y + 28);
+                } else {
+                    // Kotak Kosong Terpakai
+                    ctx.fillStyle = '#6b7280';
+                    ctx.fillRect(q.x, q.y, q.width, q.height);
+                    ctx.strokeStyle = '#374151';
+                    ctx.strokeRect(q.x, q.y, q.width, q.height);
+                }
+            });
+
+            // Bendera Finish
+            ctx.fillStyle = '#94a3b8'; // Tiang
+            ctx.fillRect(finishFlag.x, finishFlag.y, 8, finishFlag.height);
+            ctx.fillStyle = '#ef4444'; // Bendera Merah
+            ctx.beginPath();
+            ctx.moveTo(finishFlag.x + 8, finishFlag.y);
+            ctx.lineTo(finishFlag.x + 50, finishFlag.y + 25);
+            ctx.lineTo(finishFlag.x + 8, finishFlag.y + 50);
+            ctx.fill();
+
+            // Karakter Atlet (Mario Style)
+            ctx.fillStyle = '#3b82f6'; // Baju Biru Atlet
+            ctx.fillRect(player.x, player.y + 16, player.width, player.height - 16);
+            
+            ctx.fillStyle = '#fca5a5'; // Kepala / Kulit
+            ctx.fillRect(player.x + 4, player.y, 24, 18);
+
+            ctx.fillStyle = '#dc2626'; // Topi Merah
+            ctx.fillRect(player.x + 2, player.y, 28, 6);
+
+            // Mata
+            ctx.fillStyle = '#000';
+            const eyeX = player.facingRight ? player.x + 20 : player.x + 6;
+            ctx.fillRect(eyeX, player.y + 8, 4, 4);
+
+            ctx.restore();
+        }
+
+        // Main Loop
+        function loop() {
+            update();
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        /* ==========================================================================
+           MODAL QUIZ & LOGIC PERTANYAAN
+           ========================================================================== */
+        let activeQuestionBlock = null;
+
+        function triggerQuiz(block) {
+            gameState = 'QUIZ';
+            activeQuestionBlock = block;
+            currentQuestionIdx = block.questionIndex;
+
+            const data = quizData[currentQuestionIdx];
+            
+            document.getElementById('quizLevelBadge').innerText = `LEVEL ${data.level} - SOAL ${currentQuestionIdx + 1}/20`;
+            document.getElementById('quizQuestion').innerText = data.question;
+
+            const optionsContainer = document.getElementById('quizOptions');
+            optionsContainer.innerHTML = '';
+
+            data.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left bg-gray-700 hover:bg-yellow-600 text-white p-3 rounded-xl border border-gray-600 font-sans transition flex items-center justify-between group";
+                btn.innerHTML = `<span>${opt}</span> <i class="fas fa-chevron-right text-xs opacity-0 group-hover:opacity-100"></i>`;
+                btn.onclick = () => checkAnswer(idx, data);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('quizFeedback').classList.add('hidden');
+            document.getElementById('quizModal').classList.remove('hidden');
+        }
+
+        function checkAnswer(selectedIdx, data) {
+            const feedbackEl = document.getElementById('quizFeedback');
+            feedbackEl.classList.remove('hidden');
+
+            if (selectedIdx === data.answer) {
+                // Jawaban Benar
+                playSound(800, 0.2);
+                score += 100;
+                document.getElementById('scoreText').innerText = score;
+
+                feedbackEl.className = "p-3 rounded-lg text-sm font-bold text-center mt-2 bg-green-600 text-white";
+                feedbackEl.innerHTML = `<i class="fas fa-check-circle mr-1"></i> BENAR! ${data.explanation}`;
+
+                setTimeout(() => {
+                    document.getElementById('quizModal').classList.add('hidden');
+                    if (activeQuestionBlock) activeQuestionBlock.active = false;
+                    gameState = 'PLAYING';
+                }, 2200);
+
+            } else {
+                // Jawaban Salah
+                playSound(200, 0.3, 'sawtooth');
+                feedbackEl.className = "p-3 rounded-lg text-sm font-bold text-center mt-2 bg-red-600 text-white";
+                feedbackEl.innerHTML = `<i class="fas fa-times-circle mr-1"></i> SALAH! Coba pelajari materi lompat jauh lagi!`;
+
+                setTimeout(() => {
+                    document.getElementById('quizModal').classList.add('hidden');
+                    playerDie("Jawaban kamu salah pada kotak soal!");
+                    gameState = 'PLAYING';
+                }, 1800);
+            }
+        }
+
+        // Controls Screen Game
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            score = 0;
+            lives = 3;
+            document.getElementById('scoreText').innerText = score;
+            document.getElementById('livesText').innerText = `x${lives}`;
+            initLevel(1);
+            gameState = 'PLAYING';
+        }
+
+        function restartGame() {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            startGame();
+        }
+
+        // Start animation loop
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
+```eof
+
+### Fitur Utama Game:
+1. **Multi-Level Pembelajaran Lompat Jauh**:
+   - **Level 1**: Tahap Awalan (*Approach*) & Tumpuan (*Takeoff*).
+   - **Level 2**: Sikap Melayang di Udara (*Flight Phase*: Gaya Jongkok, Menggantung, Berjalan di Udara).
+   - **Level 3**: Pendaratan & Peraturan Resmi (*Landing & Competition Rules*).
+   - **Level 4**: Tingkat Mahir, Induk Organisasi (PASI), & Kejuaraan Dunia.
+2. **20 Soal Pilihan Ganda Interaktif**: Berada di dalam kotak misteri **`[?]`** ala Mario. Pemain menyundul kotak dari bawah untuk membuka soal.
+3. **Mekanik Permainan**:
+   - Berjalan, melompat, mengumpulkan koin bonus, dan menghindari jurang.
+   - Nyawa (HP) berkurang jika salah menjawab soal atau jatuh ke jurang.
+   - Pembahasan/penjelasan otomatis muncul saat menjawab soal.
